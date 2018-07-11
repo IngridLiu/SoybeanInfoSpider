@@ -1,0 +1,126 @@
+
+import re
+import csv
+import json
+import requests
+import numpy as np
+from urllib.request import urlopen
+from dateutil.relativedelta import relativedelta
+from bs4 import BeautifulSoup
+from datetime import datetime
+
+
+def get_time_tp():
+    # 获取整个爬取数据的开始和结束时间
+    year_start_time, mon_start_time, day_start_time = "2014-01-01".split('-')
+    glo_start_time = datetime(int(year_start_time), int(mon_start_time), int(day_start_time))
+    print(str(glo_start_time))
+    glo_end_time = datetime.today()
+    print(str(glo_end_time))
+
+    # 初始化开始时间数组和结束时间数组
+    start_time_list = []
+    end_time_list = []
+
+    # 获取开始时间数组和结束时间数组
+    start_time = glo_start_time
+    end_time = glo_start_time + relativedelta(months=+3)
+    while end_time < glo_end_time:
+        start_time_list.append(str(start_time).split(" ")[0])
+        end_time_list.append(str(end_time).split(" ")[0])
+        start_time = end_time
+        end_time = end_time + relativedelta(months=+3)
+    start_time_list.append(str(start_time).split(" ")[0])
+    end_time_list.append(str(glo_end_time).split(" ")[0])
+
+    return start_time_list, end_time_list
+
+
+# 获取每一日期对应有多少
+def get_page_counts(main_page_url):
+
+    html = urlopen(main_page_url)
+
+    page_obj = BeautifulSoup(html)
+
+    pages_script = page_obj.find_all("script")[-1].string
+    pages_count_var = pages_script.strip("\r\n").split("\r\n")[0].rstrip(";")
+    pages_count = pages_count_var.split(" ")[-1]
+    return int(pages_count)
+
+
+def soybean_price_spider(url):
+
+    print("start to crawl the url: %s" % url)
+
+    soybean_price = []
+
+    html = urlopen(url)
+    page_obj = BeautifulSoup(html)
+
+    data_table = page_obj.find_all("table")[0].text
+    data_table = data_table.replace("\n\n\n\n\n\n\n\n", "\n\n\n")
+    data_lines = data_table.lstrip("(\n)\+").rstrip("(\n)\+").split("\n\n\n")
+
+    for line_num, data in enumerate(data_lines):
+        data_line = []
+        if line_num > 0 :
+            data = data.replace("\n\n","\n")
+            data_items = data.split("\n")
+            date = data_items[0]
+            product = data_items[1]
+            price = re.match("[0-9]*(\.)*[0-9]*", data_items[2], flags=0).group()
+            unit = data_items[2].lstrip(price)
+            market = data_items[3]
+
+            data_line = [product, date, market, price, unit]
+
+            soybean_price.append(data_line)
+
+    return soybean_price
+
+
+
+
+if __name__ == "__main__":
+
+    save_file = "/Users/ingrid/RelatedToSchoolWork/Data/soybean_price_info/soybean_price.csv"
+
+    base_url = "http://nc.mofcom.gov.cn/channel/jghq2017/price_list.shtml?par_craft_index=13073&craft_index=13087&par_p_index=&p_index=&startTime={0}&endTime={1}&page={2}"
+
+    # 获取爬虫开始时间数组，结束时间数组
+    start_time_list, end_time_list = get_time_tp()
+
+    #初始化数据存储数组
+    #soybean_price = [["product", "date", "market", "price"]]
+
+    # 爬取数据
+    for i, start_time in enumerate(start_time_list):
+
+        print("the start time is : %s" % start_time)
+
+        # 获取完整的爬虫url
+        end_time = end_time_list[i]
+        print("the end time is : %s" % end_time)
+
+        main_url = base_url.format(start_time, end_time, "1")
+        pages_count = get_page_counts(main_url)
+        print("pages count to crawl: %d" % pages_count)
+
+        soybean_price_part = []
+
+        for page_num in range(pages_count):
+            print("crawl info: start time : %s; end_time : %s; page num : %d" % (start_time, end_time, page_num))
+            url = base_url.format(start_time, end_time, str(page_num + 1))
+            data_page = soybean_price_spider(url)
+
+            soybean_price_part = soybean_price_part + data_page
+
+        # 将数据写入文件
+        with open(save_file, 'a') as file:
+            writer = csv.writer(file, delimiter = ',')
+            writer.writerows(soybean_price_part)
+            print("write price of soybean between %s and %s successflly." % (start_time, end_time))
+
+    #soybean_price = np.array(soybean_price)
+    #np.savetxt(save_file, soybean_price, delimiter=',', footer=)
