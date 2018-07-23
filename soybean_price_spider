@@ -1,9 +1,6 @@
 
 import re
 import csv
-import json
-import requests
-import numpy as np
 import pandas as pd
 from urllib.request import urlopen
 from dateutil.relativedelta import relativedelta
@@ -130,6 +127,7 @@ if __name__ == "__main__":
     soybean_price_df.columns = soybean_price_columns
     soybean_price_df["date"] = pd.to_datetime(soybean_price_df["date"], format="%Y-%m-%d")
     soybean_price_df.sort_values( by="date", inplace=True, ascending=True)
+    soybean_price_df.set_index(["date"], inplace=True)
     # 重新将数据写入csv文件
     soybean_price_df.to_csv(save_file_path, index=False)
 

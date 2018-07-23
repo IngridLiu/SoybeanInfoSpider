@@ -125,8 +125,10 @@ if __name__ == "__main__":
     data_date_total_df["date"] = pd.to_datetime(data_date_total_df["date"], format="%Y-%m-%d")
     data_date_total_df.sort_values(by="date", inplace=True, ascending=True)
 
+    data_date_total_df.set_index(["date"], inplace=True)
+
     # 保存数据到csv文件
     save_file = "money_supply_info.csv"
     save_path = data_root + save_file
 
-    data_date_total_df.to_csv(save_path, index=False)
+    data_date_total_df.to_csv(save_path, index=True)
